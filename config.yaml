@@ -1,0 +1,13 @@
+news_sites:
+  eluniversal:
+    url: http://www.eluniversal.com
+    queries:
+      homepage_article_links: '.title'
+      article_body: 'div#cuerpo'
+      article_title: '.title a'
+  elpais:
+    url: https://elpais.com
+    queries:
+      homepage_article_links: 'h2 > a'
+      article_body: ''
+      article_title: ''
