@@ -3,31 +3,68 @@ import argparse
 
 logging.basicConfig(level=logging.INFO)
 
-import news_page_objects as news
+import re
 
+from requests.exceptions import HTTPError
+from urllib3.exceptions import MaxRetryError
+
+import news_page_objects as news
 from common import config
 
 logger = logging.getLogger(__name__)
 
+is_well_formed_url= re.compile(r'^https?://.+/.+$') # i.e. https://www.somesite.com/something
+is_root_path = re.compile(r'^/.+$') # i.e. /some-text
 
 def _news_scraper(news_site_uid):
     host = config()['news_sites'][news_site_uid]['url']
     
     logger.info('Beginning scraper for %s'%host)
     logger.info('Finding links in homepage...')
-    
-    article_links = _find_article_links_in_homepage(news_site_uid)
-
-    logging.info('{} article links found in homepage'.format(len(article_links)))
-    
-    for link in article_links:
-        print(host, link, sep='') if 'http' not in link else print(link)
         
+    homepage = news.HomePage(news_site_uid, host)
 
-def _find_article_links_in_homepage(news_site_uid):
-    homepage = news.HomePage(news_site_uid)
+    
+    articles = []
+    
+    for link in homepage.article_links:
+        article = _fetch_article(news_site_uid, host, link)
+        
+        if article:
+            logger.info('Article fetched !!')
+            articles.append(article)
+            print(article.title)
+        
+    print(len(articles))
+        
+        
+def _fetch_article(news_site_uid, host, link):
+    logger.info('Start fetching article at {}'.format(link))
+    
+    article = None
+    
+    try:
+        article = news.ArticlePage(news_site_uid, _build_link(host, link))
+    except (HTTPError, MaxRetryError) as e:
+        logger.warning('Error while fetching the article', exc_info=False)
+    
+    if article and not article.body:
+        logger.warning('Invalid article. There is not body')
+        return None
+    
+    return article
 
-    return homepage.article_links
+def _build_link(host, link):
+    if is_well_formed_url.match(link):
+        print('\n\nAqui cayo el codigo if#1\n\n')
+        return link
+    elif is_root_path.match(link):
+        print('\n\nAqui cayo el codigo if#2\n\n')
+        return '{}{}'.format(host, link)
+    else:
+        print('\n\nAqui cayo el codigo if#3\n\n')
+        return '{host}/{uri}'.format(host=host, uri=link)
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
