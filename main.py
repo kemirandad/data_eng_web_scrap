@@ -35,7 +35,6 @@ def _news_scraper(news_site_uid):
         if article:
             logger.info('Article fetched !!')
             articles.append(article)
-            break
     
     _save_articles(news_site_uid, articles)
 
@@ -74,13 +73,10 @@ def _fetch_article(news_site_uid, host, link):
 
 def _build_link(host, link):
     if is_well_formed_url.match(link):
-        print('\n\nAqui cayo el codigo if#1\n\n')
         return link
     elif is_root_path.match(link):
-        print('\n\nAqui cayo el codigo if#2\n\n')
         return '{}{}'.format(host, link)
     else:
-        print('\n\nAqui cayo el codigo if#3\n\n')
         return '{host}/{uri}'.format(host=host, uri=link)
 
 
