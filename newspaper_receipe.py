@@ -16,8 +16,10 @@ def main(filename):
     df = _add_newspaper_uid_column(df, newspaper_uid)
 
     df = _extract_host(df)
+    df = _fill_missing_titles(df)
 
     return df
+
 
 def _read_data(filename):
     logger.info('Reading file {}'.format(filename))
@@ -45,6 +47,23 @@ def _extract_host(df):
     df['host'] = df['url'].apply(lambda url: urlparse(url).netloc)
 
     return df
+
+
+def _fill_missing_titles(df):
+    logger.info('Filling missing title')
+    missing_titles_mask = df['title'].isna()
+
+    missing_titles = (df[missing_titles_mask]['url']
+                        .str.extract(r'(?P<missing_titles>[^/]+)%')
+                        .applymap(str)
+                        .applymap(lambda title: title.split('-'))
+                        .applymap(lambda title_word_list: ' '.join(title_word_list))
+                    )
+    
+    df.loc[missing_titles_mask, 'title'] = missing_titles.loc[:, 'missing_titles']
+
+    return df
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
