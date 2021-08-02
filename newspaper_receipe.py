@@ -5,6 +5,8 @@ logging.basicConfig(level=logging.INFO)
 from urllib.parse import urlparse
 import pandas as pd
 import hashlib
+import nltk
+from nltk.corpus import stopwords
 
 logger = logging.getLogger(__name__)
 
@@ -20,6 +22,12 @@ def main(filename):
     df = _fill_missing_titles(df)
     df = _generate_uids_for_rows(df)
     df = _remove_new_line_from_body(df)
+    df = _tokenize_text(df, 'title')
+    df = _tokenize_text(df, 'body')
+    df = _delete_duplicates(df, 'title')
+    df = _drop_rows_with_missing_data(df)
+
+    _save_data(df, filename)
 
     return df
 
@@ -27,7 +35,7 @@ def main(filename):
 def _read_data(filename):
     logger.info('Reading file {}'.format(filename))
 
-    return pd.read_csv(filename)
+    return pd.read_csv(filename, encoding='utf-8')
 
 
 def _extract_newspaper_uid(filename):
@@ -67,6 +75,7 @@ def _fill_missing_titles(df):
 
     return df
 
+
 def _generate_uids_for_rows(df):
     logger.info('Generating uids for each row')
     uids = (df
@@ -76,6 +85,7 @@ def _generate_uids_for_rows(df):
     df['uid'] = uids
 
     return df.set_index('uid')
+
 
 def _remove_new_line_from_body(df):
     logger.info('Remove new lines from body')
@@ -91,6 +101,43 @@ def _remove_new_line_from_body(df):
     df['body'] = stripped_body
     
     return df
+
+
+def _tokenize_text(df, column_name):
+    logger.info('Tokenizing column {}...'.format(column_name))
+    stop_words = set(stopwords.words('spanish'))
+    column_tokenized = (df
+                        .dropna()
+                        .apply(lambda row: nltk.word_tokenize(row[column_name]), axis=1)
+                        .apply(lambda tokens: list(filter(lambda token: token.isalpha(), tokens)))
+                        .apply(lambda tokens: list(map(lambda token: token.lower(), tokens)))
+                        .apply(lambda word_list: list(filter(lambda word: word not in stop_words, word_list)))
+                        .apply(lambda valids_word_len: len(valids_word_len))
+                        )
+    df['n_tokens_{}'.format(column_name)] = column_tokenized
+
+    return df
+
+
+def _delete_duplicates(df, column_name):
+    logger.info('Deleting duplicates from {}'.format(column_name))
+    if df[column_name].count() > df[column_name].unique().size:
+        delect_elements = (df
+                            .drop_duplicates(subset=[column_name], keep='first', inplace=True)
+        )
+    
+    return df
+
+
+def _drop_rows_with_missing_data(df):
+    logger.info('Dropping rows with missing values')
+    return df.dropna()
+
+
+def _save_data(df, filename):
+    clean_filename = 'clean_{}'.format(filename)
+    logger.info('Saving data at location: {}'.format(filename))
+    df.to_csv(clean_filename)
 
 
 if __name__ == '__main__':
